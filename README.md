@@ -1,0 +1,1 @@
+The Garden is a small collection of bright, whimsical mini-experiences — a spinning wheel of compliments, a memory-matching game, a quick reflex game, and a few quieter toys — all built for a couple of minutes of fun. It also links out to Ink & Bloom, the original personalized letter experience🩵✨
