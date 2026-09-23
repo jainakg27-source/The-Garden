@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Bloom Compass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 15% 15%, rgba(255,157,186,0.4), transparent 60%),
+                radial-gradient(circle at 85% 85%, rgba(111,214,160,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px 48px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 20px; }
+  .dots { display: flex; gap: 8px; margin-bottom: 28px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(58,52,44,0.2); }
+  .dot.active { background: var(--gold); }
+  .dot.done { background: rgba(226,165,42,0.5); }
+
+  .q-text { font-family: 'Fraunces', serif; font-size: 22px; max-width: 460px; margin-bottom: 24px; }
+  .options { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 420px; }
+  .opt-btn {
+    font-family: 'Karla', sans-serif; font-size: 15px; text-align: left; padding: 14px 18px;
+    border: none; border-radius: 10px; cursor: pointer; background: rgba(111,214,160,0.25);
+  }
+  .opt-btn:hover { background: rgba(111,214,160,0.4); }
+  .opt-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .result-card { max-width: 420px; }
+  .result-badge { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 18px; }
+  .result-name { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 600; margin: 0 0 12px; }
+  .result-desc { font-size: 16px; line-height: 1.6; margin-bottom: 24px; }
+  #restart-btn, #start-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 15px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 13px 30px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,165,42,0.4);
+  }
+  #intro-screen p { max-width: 380px; opacity: 0.8; margin-bottom: 24px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+  <span class="eyebrow">A very small quiz</span>
+  <h1>The Bloom Compass</h1>
+
+  <div id="intro-screen">
+    <p>Eight quick questions. No right answers, just a creature that happens to match you today.</p>
+    <button id="start-btn">Begin</button>
+  </div>
+
+  <div id="quiz-screen" class="hidden">
+    <div class="dots" id="dots"></div>
+    <div class="q-text" id="q-text"></div>
+    <div class="options" id="options"></div>
+  </div>
+
+  <div id="result-screen" class="hidden result-card">
+    <div class="result-badge" id="result-badge"></div>
+    <h2 class="result-name" id="result-name"></h2>
+    <p class="result-desc" id="result-desc"></p>
+    <button id="restart-btn">Take it again</button>
+  </div>
+
+<script>
+  var QUESTIONS = [
+    { text: "It's a free afternoon. You—", axis: 'energy',
+      options: [ { label: "Find a quiet corner and a book", value: -1 }, { label: "Go looking for something to do", value: 1 } ] },
+    { text: "A party's happening tonight. You're—", axis: 'social',
+      options: [ { label: "Happier with one or two people", value: -1 }, { label: "Right in the middle of it", value: 1 } ] },
+    { text: "Something unfamiliar shows up. You—", axis: 'curiosity',
+      options: [ { label: "Watch it carefully first", value: -1 }, { label: "Go straight up to it", value: 1 } ] },
+    { text: "Your ideal weekend has—", axis: 'energy',
+      options: [ { label: "Very little on the schedule", value: -1 }, { label: "Something happening most of it", value: 1 } ] },
+    { text: "You'd rather spend an evening—", axis: 'social',
+      options: [ { label: "At home, just you", value: -1 }, { label: "Wherever the group ends up", value: 1 } ] },
+    { text: "A new opportunity appears, slightly risky. You—", axis: 'curiosity',
+      options: [ { label: "Think it over for a while", value: -1 }, { label: "Say yes before you overthink it", value: 1 } ] },
+    { text: "Your natural pace is more—", axis: 'energy',
+      options: [ { label: "Steady and unhurried", value: -1 }, { label: "Quick and a little restless", value: 1 } ] },
+    { text: "In a group, you're usually the one who—", axis: 'social',
+      options: [ { label: "Listens more than talks", value: -1 }, { label: "Keeps the energy going", value: 1 } ] }
+  ];
+
+  var CREATURES = {
+    'calm_solo_cautious':  { name: "The Turtle",    color: '#6fd6a0', desc: "Patient, steady, in no rush to be anywhere but where you already are." },
+    'calm_solo_bold':      { name: "The Owl",       color: '#b7a9ff', desc: "Quiet on the outside, quietly daring underneath — you just don't announce it." },
+    'calm_group_cautious': { name: "The Otter",     color: '#4fd1c5', desc: "Warm, careful with people, happiest floating along with a small trusted group." },
+    'calm_group_bold':     { name: "The Sparrow",   color: '#ffdc4d', desc: "Social and a little adventurous — you like company, and you like where it leads." },
+    'wild_solo_cautious':  { name: "The Fox",       color: '#ffab6e', desc: "Clever and independent, careful about who gets close, sharp about everything else." },
+    'wild_solo_bold':      { name: "The Firefly",   color: '#e2a52a', desc: "A bit of a wild spark, happiest doing your own unpredictable thing." },
+    'wild_group_cautious': { name: "The Hedgehog",  color: '#ff9dba', desc: "Energetic but protective of your space — all in, on your own terms." },
+    'wild_group_bold':     { name: "The Butterfly", color: '#ff6f91', desc: "Free-moving, social, and a little bold — you go where the good energy is." }
+  };
+
+  var current = 0;
+  var scores = { energy: 0, social: 0, curiosity: 0 };
+
+  function buildDots() {
+    var dotsEl = document.getElementById('dots');
+    dotsEl.innerHTML = '';
+    QUESTIONS.forEach(function (q, i) {
+      var d = document.createElement('span');
+      d.className = 'dot' + (i < current ? ' done' : i === current ? ' active' : '');
+      dotsEl.appendChild(d);
+    });
+  }
+
+  function showQuestion() {
+    buildDots();
+    var q = QUESTIONS[current];
+    document.getElementById('q-text').textContent = q.text;
+    var optWrap = document.getElementById('options');
+    optWrap.innerHTML = '';
+    q.options.forEach(function (opt) {
+      var btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', function () {
+        scores[q.axis] += opt.value;
+        current++;
+        if (current < QUESTIONS.length) { showQuestion(); }
+        else { showResult(); }
+      });
+      optWrap.appendChild(btn);
+    });
+  }
+
+  function showResult() {
+    document.getElementById('quiz-screen').classList.add('hidden');
+    document.getElementById('result-screen').classList.remove('hidden');
+    var key = (scores.energy >= 0 ? 'wild' : 'calm') + '_' +
+              (scores.social >= 0 ? 'group' : 'solo') + '_' +
+              (scores.curiosity >= 0 ? 'bold' : 'cautious');
+    var creature = CREATURES[key];
+    document.getElementById('result-badge').style.background = creature.color;
+    document.getElementById('result-name').textContent = creature.name;
+    document.getElementById('result-desc').textContent = creature.desc;
+  }
+
+  function restart() {
+    current = 0;
+    scores = { energy: 0, social: 0, curiosity: 0 };
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('quiz-screen').classList.remove('hidden');
+    showQuestion();
+  }
+
+  document.getElementById('start-btn').addEventListener('click', function () {
+    document.getElementById('intro-screen').classList.add('hidden');
+    document.getElementById('quiz-screen').classList.remove('hidden');
+    showQuestion();
+  });
+  document.getElementById('restart-btn').addEventListener('click', restart);
+</script>
+</body>
+</html>

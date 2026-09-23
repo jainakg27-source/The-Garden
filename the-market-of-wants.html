@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Market of Wants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 15% 85%, rgba(255,171,110,0.35), transparent 60%),
+                radial-gradient(circle at 85% 15%, rgba(111,214,160,0.35), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 56px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 28px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 16px; opacity: 0.75; max-width: 440px; }
+  #budget { font-weight: 700; font-size: 18px; margin-bottom: 20px; }
+
+  #shop { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 560px; margin-bottom: 24px; text-align: left; }
+  @media (min-width: 560px) { #shop { grid-template-columns: 1fr 1fr 1fr; } }
+  .item {
+    background: rgba(255,255,255,0.6); border-radius: 14px; padding: 14px 16px;
+    box-shadow: 0 4px 12px rgba(58,52,44,0.08); display: flex; flex-direction: column; gap: 8px;
+  }
+  .item p.name { font-size: 14px; margin: 0; line-height: 1.4; }
+  .item .price { font-weight: 700; font-size: 13px; opacity: 0.75; }
+  .item button {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 13px; border: none; border-radius: 999px;
+    padding: 8px 14px; cursor: pointer; background: var(--gold); color: white;
+  }
+  .item button:disabled { background: rgba(58,52,44,0.2); cursor: not-allowed; }
+  .item.owned { opacity: 0.6; }
+
+  #checkout-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 14px 32px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,165,42,0.4); margin-bottom: 10px;
+  }
+
+  #result { display: none; max-width: 440px; }
+  #result h2 { font-family: 'Fraunces', serif; font-size: 24px; margin: 0 0 10px; }
+  #result p { font-size: 15px; line-height: 1.6; margin: 0 0 8px; }
+  #owned-list { font-size: 13px; opacity: 0.75; margin-bottom: 18px; }
+  #restart-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 14px;
+    background: transparent; border: 2px solid var(--gold); color: var(--ink);
+    border-radius: 999px; padding: 10px 24px; cursor: pointer;
+  }
+  #shop-screen.hidden, #result.shown-hidden { display: none; }
+</style>
+</head>
+<body>
+  <span class="eyebrow">100 Glimmers to spend</span>
+  <h1>The Market of Wants</h1>
+  <p class="sub">A whimsical little shop. Buy whatever catches you, skip whatever doesn't, and check out whenever you're ready.</p>
+  <p id="budget">Remaining: 100 Glimmers</p>
+
+  <div id="shop-screen">
+    <div id="shop"></div>
+    <button id="checkout-btn">Checkout</button>
+  </div>
+
+  <div id="result">
+    <h2 id="verdict-title"></h2>
+    <p id="verdict-desc"></p>
+    <p id="owned-list"></p>
+    <button id="restart-btn">Start over</button>
+  </div>
+
+<script>
+  var ITEMS = [
+    { name: "A jar of captured starlight", price: 25 },
+    { name: "Socks that never go cold", price: 10 },
+    { name: "A map to nowhere in particular", price: 15 },
+    { name: "One perfectly ripe peach", price: 5 },
+    { name: "A tiny umbrella for your coffee", price: 8 },
+    { name: "A bell that rings only for good news", price: 30 },
+    { name: "A borrowed cloud, returnable", price: 20 },
+    { name: "Permission to skip one Monday", price: 35 },
+    { name: "A drawer that's always a little bit magic", price: 18 },
+    { name: "The last cookie, guilt-free", price: 6 },
+    { name: "A compass that points to comfort", price: 22 },
+    { name: "One entire afternoon, unplanned", price: 40 }
+  ];
+
+  var BUDGET_START = 100;
+  var budget = BUDGET_START;
+  var owned = [];
+
+  function renderShop() {
+    var shop = document.getElementById('shop');
+    shop.innerHTML = '';
+    ITEMS.forEach(function (item, idx) {
+      var isOwned = owned.indexOf(idx) !== -1;
+      var card = document.createElement('div');
+      card.className = 'item' + (isOwned ? ' owned' : '');
+      var name = document.createElement('p');
+      name.className = 'name';
+      name.textContent = item.name;
+      var price = document.createElement('p');
+      price.className = 'price';
+      price.textContent = isOwned ? 'Owned' : item.price + ' Glimmers';
+      var btn = document.createElement('button');
+      btn.textContent = isOwned ? 'Bought' : 'Buy';
+      btn.disabled = isOwned || item.price > budget;
+      btn.addEventListener('click', function () {
+        if (item.price > budget || isOwned) { return; }
+        budget -= item.price;
+        owned.push(idx);
+        document.getElementById('budget').textContent = 'Remaining: ' + budget + ' Glimmers';
+        renderShop();
+      });
+      card.appendChild(name);
+      card.appendChild(price);
+      card.appendChild(btn);
+      shop.appendChild(card);
+    });
+  }
+
+  function verdictFor(spent, remaining) {
+    if (remaining >= 50) {
+      return { title: "The Careful Keeper", desc: "You held onto most of it. Not because you had to — you just weren't in a hurry to spend." };
+    }
+    if (remaining <= 5) {
+      return { title: "The Bold Spender", desc: "Almost all of it, gone \u2014 and probably on exactly the things you actually wanted." };
+    }
+    if (owned.length >= 6) {
+      return { title: "The Collector", desc: "A little of everything. You'd rather have several small delights than one big one." };
+    }
+    return { title: "The Curator", desc: "A handful of things, chosen carefully. Quality over quantity, clearly." };
+  }
+
+  document.getElementById('checkout-btn').addEventListener('click', function () {
+    var spent = BUDGET_START - budget;
+    var v = verdictFor(spent, budget);
+    document.getElementById('shop-screen').style.display = 'none';
+    document.getElementById('verdict-title').textContent = v.title;
+    document.getElementById('verdict-desc').textContent = v.desc;
+    var names = owned.map(function (idx) { return ITEMS[idx].name; });
+    document.getElementById('owned-list').textContent = owned.length
+      ? ('You bought: ' + names.join(', ') + '.')
+      : "You didn't buy a single thing. That's a choice too.";
+    document.getElementById('result').style.display = 'block';
+  });
+
+  document.getElementById('restart-btn').addEventListener('click', function () {
+    budget = BUDGET_START;
+    owned = [];
+    document.getElementById('budget').textContent = 'Remaining: ' + budget + ' Glimmers';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'block';
+    renderShop();
+  });
+
+  renderShop();
+</script>
+</body>
+</html>

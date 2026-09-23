@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloom Sequence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 20% 20%, rgba(183,169,255,0.4), transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(255,220,77,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 48px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 20px; opacity: 0.75; max-width: 380px; }
+  #stats { font-weight: 600; margin-bottom: 24px; display: flex; gap: 24px; }
+
+  #wheel-wrap { position: relative; width: 280px; height: 280px; margin-bottom: 24px; }
+  .petal {
+    position: absolute; width: 110px; height: 110px; border-radius: 50% 50% 50% 4px;
+    border: none; cursor: pointer; opacity: 0.55; transition: opacity 120ms ease, transform 120ms ease;
+  }
+  .petal.lit { opacity: 1; transform: scale(1.06); }
+  .petal:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  #center-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: 'Fraunces', serif; font-size: 16px; width: 90px; pointer-events: none;
+  }
+
+  #start-btn, #retry-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 14px 32px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,165,42,0.4);
+  }
+  #end-msg { display: none; font-family: 'Fraunces', serif; font-size: 20px; margin-bottom: 14px; }
+  @media (prefers-reduced-motion: reduce) { .petal { transition: none; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Watch, then repeat</span>
+  <h1>Bloom Sequence</h1>
+  <p class="sub">Six petals light up in a growing pattern. Repeat it back. One mistake ends the round.</p>
+  <div id="stats"><span id="level">Level: 0</span><span id="best">Best: 0</span></div>
+
+  <div id="wheel-wrap">
+    <span id="center-msg">Press Start</span>
+    <!-- six petals positioned around a hexagon -->
+    <button class="petal" data-i="0" style="background:#6fd6a0; top: 0px; left: 85px;"></button>
+    <button class="petal" data-i="1" style="background:#ffdc4d; top: 47px; left: 165px;"></button>
+    <button class="petal" data-i="2" style="background:#ff9dba; top: 133px; left: 165px;"></button>
+    <button class="petal" data-i="3" style="background:#ffab6e; top: 180px; left: 85px;"></button>
+    <button class="petal" data-i="4" style="background:#b7a9ff; top: 133px; left: 5px;"></button>
+    <button class="petal" data-i="5" style="background:#4fd1c5; top: 47px; left: 5px;"></button>
+  </div>
+
+  <p id="end-msg" aria-live="polite"></p>
+  <button id="start-btn">Start</button>
+
+<script>
+  var petals = Array.prototype.slice.call(document.querySelectorAll('.petal'));
+  var sequence = [], playerStep = 0, level = 0, best = 0, accepting = false;
+
+  try {
+    var saved = localStorage.getItem('bloomSequenceBest');
+    if (saved) { best = parseInt(saved, 10) || 0; }
+  } catch (e) { /* localStorage unavailable */ }
+  document.getElementById('best').textContent = 'Best: ' + best;
+
+  function lightPetal(i, duration) {
+    return new Promise(function (resolve) {
+      var p = petals[i];
+      p.classList.add('lit');
+      setTimeout(function () { p.classList.remove('lit'); resolve(); }, duration);
+    });
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function playSequence() {
+    accepting = false;
+    document.getElementById('center-msg').textContent = 'Watch...';
+    await wait(500);
+    for (var i = 0; i < sequence.length; i++) {
+      await lightPetal(sequence[i], 420);
+      await wait(180);
+    }
+    document.getElementById('center-msg').textContent = 'Your turn';
+    playerStep = 0;
+    accepting = true;
+  }
+
+  function nextLevel() {
+    level++;
+    document.getElementById('level').textContent = 'Level: ' + level;
+    sequence.push(Math.floor(Math.random() * 6));
+    playSequence();
+  }
+
+  function endGame() {
+    accepting = false;
+    document.getElementById('center-msg').textContent = 'Press Start';
+    document.getElementById('start-btn').style.display = 'inline-block';
+    document.getElementById('start-btn').textContent = 'Try again';
+    var msg = 'Round over \u2014 reached level ' + level + '.';
+    if (level > best) {
+      best = level;
+      document.getElementById('best').textContent = 'Best: ' + best;
+      try { localStorage.setItem('bloomSequenceBest', String(best)); } catch (e) { /* ignore */ }
+      msg = 'New best! Reached level ' + level + ' \u2728';
+    }
+    document.getElementById('end-msg').textContent = msg;
+    document.getElementById('end-msg').style.display = 'block';
+  }
+
+  petals.forEach(function (p) {
+    p.addEventListener('click', function () {
+      if (!accepting) { return; }
+      var i = parseInt(p.dataset.i, 10);
+      lightPetal(i, 250);
+      if (i === sequence[playerStep]) {
+        playerStep++;
+        if (playerStep === sequence.length) {
+          accepting = false;
+          document.getElementById('center-msg').textContent = 'Nice!';
+          setTimeout(nextLevel, 700);
+        }
+      } else {
+        endGame();
+      }
+    });
+  });
+
+  document.getElementById('start-btn').addEventListener('click', function () {
+    level = 0; sequence = []; playerStep = 0;
+    document.getElementById('level').textContent = 'Level: 0';
+    document.getElementById('end-msg').style.display = 'none';
+    document.getElementById('start-btn').style.display = 'none';
+    nextLevel();
+  });
+</script>
+</body>
+</html>

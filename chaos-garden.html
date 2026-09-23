@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chaos Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 20% 20%, rgba(255,111,145,0.35), transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(255,220,77,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 16px 48px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 28px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 16px; opacity: 0.75; max-width: 420px; }
+  #stats { font-weight: 600; margin-bottom: 18px; }
+
+  #plant-btn {
+    width: 96px; height: 96px; border-radius: 50%; border: none; cursor: pointer; margin-bottom: 24px;
+    background: radial-gradient(circle at 35% 30%, #ffdc4d, #e2a52a);
+    box-shadow: 0 8px 22px rgba(226,165,42,0.45); font-family: 'Karla', sans-serif; font-weight: 700; color: var(--ink);
+    transition: transform 100ms ease;
+  }
+  #plant-btn:hover { transform: scale(1.05); }
+  #plant-btn:active { transform: scale(0.96); }
+  #plant-btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  #grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+    width: 100%; max-width: 420px; margin-bottom: 20px;
+  }
+  .cell {
+    aspect-ratio: 1 / 1; border-radius: 10px; background: rgba(255,255,255,0.5);
+  }
+  .cell.filled { animation: pop 300ms ease; }
+  @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  #full-msg { display: none; font-family: 'Fraunces', serif; font-size: 22px; margin-bottom: 12px; }
+  #reset-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 15px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 12px 28px; cursor: pointer;
+    box-shadow: 0 5px 16px rgba(226,165,42,0.35); display: none;
+  }
+  .confetti { position: fixed; top: -20px; width: 10px; height: 10px; border-radius: 3px; pointer-events: none; z-index: 5; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: 0.2; } }
+  @media (prefers-reduced-motion: reduce) { .cell.filled { animation: none; } #plant-btn { transition: none; } .confetti { display: none; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Click. See what grows.</span>
+  <h1>Chaos Garden</h1>
+  <p class="sub">Every click plants something — usually one bloom, sometimes a burst of them. Fill the whole plot.</p>
+  <p id="stats">Planted: 0 / 36</p>
+
+  <button id="plant-btn">Plant</button>
+
+  <div id="grid"></div>
+  <p id="full-msg" aria-live="polite">Your garden is completely full \u2728</p>
+  <button id="reset-btn">Start a new garden</button>
+
+<script>
+  var COLORS = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#e2a52a', '#b7a9ff', '#4fd1c5', '#ff6f91'];
+  var TOTAL = 36;
+  var filled = 0;
+  var cells = [];
+
+  function buildGrid() {
+    var grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    cells = [];
+    filled = 0;
+    document.getElementById('stats').textContent = 'Planted: 0 / ' + TOTAL;
+    document.getElementById('full-msg').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'none';
+    document.getElementById('plant-btn').disabled = false;
+
+    for (var i = 0; i < TOTAL; i++) {
+      var c = document.createElement('div');
+      c.className = 'cell';
+      grid.appendChild(c);
+      cells.push(c);
+    }
+  }
+
+  function plantOne() {
+    var emptyCells = cells.filter(function (c) { return !c.classList.contains('filled'); });
+    if (emptyCells.length === 0) { return; }
+    var cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    cell.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+    cell.classList.add('filled');
+    filled++;
+  }
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function launchConfetti() {
+    if (reduced) { return; }
+    for (var i = 0; i < 50; i++) {
+      var piece = document.createElement('div');
+      piece.className = 'confetti';
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+      piece.style.animation = 'fall ' + (2 + Math.random() * 1.5) + 's ease-in forwards';
+      piece.style.animationDelay = (Math.random() * 0.4) + 's';
+      document.body.appendChild(piece);
+      (function (el) { setTimeout(function () { el.remove(); }, 4000); })(piece);
+    }
+  }
+
+  document.getElementById('plant-btn').addEventListener('click', function () {
+    var burst = Math.random() < 0.15 ? Math.floor(Math.random() * 2) + 2 : 1;
+    for (var i = 0; i < burst; i++) { plantOne(); }
+    document.getElementById('stats').textContent = 'Planted: ' + filled + ' / ' + TOTAL;
+    if (filled >= TOTAL) {
+      document.getElementById('full-msg').style.display = 'block';
+      document.getElementById('reset-btn').style.display = 'inline-block';
+      document.getElementById('plant-btn').disabled = true;
+      launchConfetti();
+    }
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', buildGrid);
+  buildGrid();
+</script>
+</body>
+</html>
