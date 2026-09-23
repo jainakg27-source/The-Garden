@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mood Bloom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 25% 20%, rgba(255,220,77,0.4), transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(255,157,186,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 32px; margin: 0 0 28px; }
+  .moods { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 480px; margin-bottom: 32px; }
+  .mood-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 14px;
+    border: 2px solid transparent; border-radius: 999px; padding: 10px 20px; cursor: pointer; color: var(--ink);
+  }
+  .mood-btn:focus-visible { outline: 3px solid #e2a52a; outline-offset: 2px; }
+  .mood-btn[aria-pressed="true"] { border-color: #e2a52a; font-weight: 700; }
+  .stage { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+  .stage svg { width: 100%; height: 100%; }
+  .petal { transform-origin: 110px 110px; transform: scale(0); }
+  .petal.bloom { animation: grow 500ms ease-out forwards; }
+  @keyframes grow { to { transform: scale(1); } }
+  #note { font-family: 'Caveat', cursive; font-size: 26px; max-width: 420px; min-height: 40px; margin-bottom: 8px; }
+  #hint { opacity: 0.6; font-size: 14px; }
+  @media (prefers-reduced-motion: reduce) { .petal.bloom { animation: none; transform: scale(1); } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Pick where you're at</span>
+  <h1>Mood Bloom</h1>
+
+  <div class="moods" id="moods" role="group" aria-label="Choose your mood"></div>
+
+  <div class="stage" id="stage" aria-hidden="true"></div>
+  <p id="note" aria-live="polite">Pick a mood and watch what grows.</p>
+  <p id="hint">Click any mood again for a different note.</p>
+
+<script>
+  var MOODS = {
+    happy:     { color: '#ffdc4d', deep: '#e2a52a', label: 'Happy',
+      notes: ["This one's easy — let it be as big as it wants to be.", "Good moods deserve to be milked for all they're worth.", "Ride this one. No need to explain it."] },
+    calm:      { color: '#8fe0c4', deep: '#35b378', label: 'Calm',
+      notes: ["Nothing to fix here. Just stay a minute.", "This is what enough feels like.", "Let the quiet do its work."] },
+    curious:   { color: '#ffab6e', deep: '#e2703a', label: 'Curious',
+      notes: ["Follow that thread and see where it goes.", "That question you keep having isn't a coincidence.", "Good — curiosity is rarely wrong."] },
+    tired:     { color: '#b7a9ff', deep: '#7c68d1', label: 'Tired',
+      notes: ["Tired isn't a failure. It's just information.", "Whatever it can wait, let it wait.", "Rest first. The list will still be there."] },
+    energized: { color: '#ff9dba', deep: '#e0537d', label: 'Energized',
+      notes: ["Point this somewhere good before it fades.", "This is a great mood to start something in.", "Use it, don't waste it arguing with someone online."] },
+    dreamy:    { color: '#6fd6a0', deep: '#2f9c66', label: 'Dreamy',
+      notes: ["Stay a little longer in that daydream.", "Not everything needs to become a plan yet.", "Some of your best ideas start exactly like this."] }
+  };
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var lastNoteIndex = {};
+
+  function buildMoodButtons() {
+    var wrap = document.getElementById('moods');
+    Object.keys(MOODS).forEach(function (key) {
+      var m = MOODS[key];
+      var btn = document.createElement('button');
+      btn.className = 'mood-btn';
+      btn.type = 'button';
+      btn.style.background = m.color + '55';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.textContent = m.label;
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.mood-btn').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+        btn.setAttribute('aria-pressed', 'true');
+        showMood(key);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function pickNote(key) {
+    var notes = MOODS[key].notes;
+    var i;
+    do { i = Math.floor(Math.random() * notes.length); } while (i === lastNoteIndex[key] && notes.length > 1);
+    lastNoteIndex[key] = i;
+    return notes[i];
+  }
+
+  function flowerSVG(color, deep) {
+    var petals = '';
+    for (var i = 0; i < 6; i++) {
+      var angle = i * 60;
+      petals += '<g class="petal' + (reduced ? '' : '') + '" style="transform: rotate(' + angle + 'deg) translate(0,-40px); transform-origin: 110px 110px;">' +
+        '<ellipse cx="110" cy="70" rx="26" ry="42" fill="' + color + '"></ellipse>' +
+        '</g>';
+    }
+    return '<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">' +
+      '<g id="petal-group">' + petals + '</g>' +
+      '<circle cx="110" cy="110" r="22" fill="' + deep + '"></circle>' +
+      '</svg>';
+  }
+
+  function showMood(key) {
+    var m = MOODS[key];
+    var stage = document.getElementById('stage');
+    stage.innerHTML = flowerSVG(m.color, m.deep);
+    var petalNodes = stage.querySelectorAll('#petal-group > g');
+    petalNodes.forEach(function (g, idx) {
+      g.classList.add('petal');
+      if (reduced) {
+        g.style.transform += ' scale(1)';
+      } else {
+        setTimeout(function () { g.classList.add('bloom'); }, idx * 60);
+      }
+    });
+    document.getElementById('note').textContent = pickNote(key);
+  }
+
+  buildMoodButtons();
+</script>
+</body>
+</html>

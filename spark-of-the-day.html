@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spark of the Day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --mint: #6fd6a0; --pink: #ff9dba; --coral: #ffab6e; --sun: #ffdc4d; --gold: #e2a52a;
+    --ink: #3a342c; --ivory: #fffaf2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink); overflow: hidden;
+    background: radial-gradient(circle at 15% 20%, rgba(111,214,160,0.55), transparent 60%),
+                radial-gradient(circle at 85% 15%, rgba(255,157,186,0.55), transparent 60%),
+                radial-gradient(circle at 20% 85%, rgba(255,171,110,0.5), transparent 60%),
+                radial-gradient(circle at 85% 85%, rgba(255,220,77,0.55), transparent 60%),
+                var(--ivory);
+  }
+  .wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); opacity: 0.6; margin-bottom: 16px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 34px; margin: 0 0 32px; }
+  .card {
+    background: rgba(255,255,255,0.75); backdrop-filter: blur(2px);
+    border-radius: 20px; padding: 40px 36px; max-width: 460px; min-height: 140px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 30px rgba(58,52,44,0.12);
+    font-family: 'Caveat', cursive; font-size: 30px; line-height: 1.3;
+  }
+  #spark-btn {
+    margin-top: 36px; font-family: 'Karla', sans-serif; font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, var(--sun), var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 16px 36px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(226,165,42,0.4); transition: transform 150ms ease;
+  }
+  #spark-btn:hover { transform: translateY(-2px) scale(1.03); }
+  #spark-btn:focus-visible, .card:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+  .confetti { position: fixed; top: -20px; width: 12px; height: 12px; border-radius: 3px; pointer-events: none; z-index: 5; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: 0.2; } }
+  @media (prefers-reduced-motion: reduce) { .confetti { display: none; } #spark-btn { transition: none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="eyebrow">A little something for today</span>
+    <h1>Spark of the Day</h1>
+    <div class="card" id="message" tabindex="-1" aria-live="polite">Click the button for your spark ✨</div>
+    <button id="spark-btn">Give me a spark</button>
+  </div>
+
+<script>
+  var MESSAGES = [
+    "Today, let something be easy on purpose.",
+    "You don't have to earn rest. Take it anyway.",
+    "Something good is closer than it feels right now.",
+    "Be the kind of busy that still leaves room for joy.",
+    "You're allowed to change your mind about what you want.",
+    "Today's a good day to text the person you've been thinking about.",
+    "Do the small thing. It counts more than you think.",
+    "Let today surprise you a little.",
+    "You're doing better than the voice in your head says.",
+    "Go outside for five minutes. That's the whole assignment.",
+    "Something you made or said mattered more than you know.",
+    "It's okay to be proud of something small today.",
+    "The thing you're avoiding is smaller than it feels.",
+    "You get to decide what today means.",
+    "Somewhere, someone is glad you exist. Probably several someones."
+  ];
+
+  var lastIndex = -1;
+  function pickMessage() {
+    var i;
+    do { i = Math.floor(Math.random() * MESSAGES.length); } while (i === lastIndex && MESSAGES.length > 1);
+    lastIndex = i;
+    return MESSAGES[i];
+  }
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var colors = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#e2a52a'];
+
+  function launchConfetti() {
+    if (reduced) return;
+    for (var i = 0; i < 40; i++) {
+      var piece = document.createElement('div');
+      piece.className = 'confetti';
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animation = 'fall ' + (2 + Math.random() * 1.5) + 's ease-in forwards';
+      piece.style.animationDelay = (Math.random() * 0.4) + 's';
+      document.body.appendChild(piece);
+      (function (el) { setTimeout(function () { el.remove(); }, 4000); })(piece);
+    }
+  }
+
+  document.getElementById('spark-btn').addEventListener('click', function () {
+    document.getElementById('message').textContent = pickMessage();
+    launchConfetti();
+  });
+</script>
+</body>
+</html>

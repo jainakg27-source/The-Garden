@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloom Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 20% 15%, rgba(255,220,77,0.4), transparent 60%),
+                radial-gradient(circle at 80% 85%, rgba(183,169,255,0.35), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 56px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 16px; opacity: 0.75; max-width: 380px; }
+  #stats { font-weight: 600; margin-bottom: 20px; display: flex; gap: 24px; }
+
+  #board {
+    display: grid; grid-template-columns: repeat(4, 70px); gap: 10px; margin-bottom: 24px;
+  }
+  @media (min-width: 480px) { #board { grid-template-columns: repeat(4, 80px); gap: 12px; } }
+
+  .card { width: 70px; height: 70px; perspective: 600px; }
+  @media (min-width: 480px) { .card { width: 80px; height: 80px; } }
+  .card-inner {
+    position: relative; width: 100%; height: 100%; transition: transform 400ms ease;
+    transform-style: preserve-3d; cursor: pointer; border-radius: 12px;
+  }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .card-inner.matched { cursor: default; opacity: 0.55; }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(58,52,44,0.12);
+  }
+  .back { background: linear-gradient(135deg, #e2a52a, #ffdc4d); }
+  .back::after { content: "?"; font-family: 'Fraunces', serif; font-size: 26px; color: white; opacity: 0.85; }
+  .front { transform: rotateY(180deg); background: white; }
+  .front svg { width: 60%; height: 60%; }
+
+  #win-msg { display: none; font-family: 'Fraunces', serif; font-size: 22px; margin: 8px 0 4px; }
+  #reset-btn {
+    margin-top: 16px; font-family: 'Karla', sans-serif; font-weight: 600; font-size: 15px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 12px 28px; cursor: pointer;
+    box-shadow: 0 5px 16px rgba(226,165,42,0.35);
+  }
+  .confetti { position: fixed; top: -20px; width: 10px; height: 10px; border-radius: 3px; pointer-events: none; z-index: 5; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: 0.2; } }
+  @media (prefers-reduced-motion: reduce) { .card-inner { transition: none; } .confetti { display: none; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Find all six pairs</span>
+  <h1>Bloom Match</h1>
+  <p class="sub">Flip two cards at a time. Match the flowers. That's the whole game.</p>
+  <div id="stats"><span id="moves">Moves: 0</span><span id="matches">Matched: 0 / 6</span></div>
+
+  <div id="board"></div>
+  <p id="win-msg" aria-live="polite">All matched! Nice memory ✨</p>
+  <button id="reset-btn">Play again</button>
+
+<script>
+  var FLOWER_COLORS = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#b7a9ff', '#4fd1c5'];
+  var moves = 0, matches = 0, flipped = [], lockBoard = false;
+
+  function flowerSVG(color) {
+    return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+      '<g>' +
+      '<ellipse cx="50" cy="28" rx="16" ry="22" fill="' + color + '"/>' +
+      '<ellipse cx="50" cy="72" rx="16" ry="22" fill="' + color + '"/>' +
+      '<ellipse cx="28" cy="50" rx="22" ry="16" fill="' + color + '"/>' +
+      '<ellipse cx="72" cy="50" rx="22" ry="16" fill="' + color + '"/>' +
+      '<circle cx="50" cy="50" r="14" fill="#3a342c"/>' +
+      '</g></svg>';
+  }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function buildBoard() {
+    var board = document.getElementById('board');
+    board.innerHTML = '';
+    moves = 0; matches = 0; flipped = []; lockBoard = false;
+    document.getElementById('moves').textContent = 'Moves: 0';
+    document.getElementById('matches').textContent = 'Matched: 0 / 6';
+    document.getElementById('win-msg').style.display = 'none';
+
+    var deck = shuffle(FLOWER_COLORS.concat(FLOWER_COLORS));
+
+    deck.forEach(function (color, i) {
+      var card = document.createElement('div');
+      card.className = 'card';
+      var inner = document.createElement('div');
+      inner.className = 'card-inner';
+      inner.dataset.color = color;
+
+      var back = document.createElement('div');
+      back.className = 'face back';
+      var front = document.createElement('div');
+      front.className = 'face front';
+      front.innerHTML = flowerSVG(color);
+
+      inner.appendChild(back);
+      inner.appendChild(front);
+      card.appendChild(inner);
+      board.appendChild(card);
+
+      inner.addEventListener('click', function () { handleFlip(inner); });
+    });
+  }
+
+  function handleFlip(inner) {
+    if (lockBoard || inner.classList.contains('flipped') || inner.classList.contains('matched')) { return; }
+    inner.classList.add('flipped');
+    flipped.push(inner);
+
+    if (flipped.length === 2) {
+      moves++;
+      document.getElementById('moves').textContent = 'Moves: ' + moves;
+      lockBoard = true;
+      var a = flipped[0], b = flipped[1];
+      if (a.dataset.color === b.dataset.color) {
+        a.classList.add('matched'); b.classList.add('matched');
+        matches++;
+        document.getElementById('matches').textContent = 'Matched: ' + matches + ' / 6';
+        flipped = [];
+        lockBoard = false;
+        if (matches === 6) {
+          document.getElementById('win-msg').style.display = 'block';
+          launchConfetti();
+        }
+      } else {
+        setTimeout(function () {
+          a.classList.remove('flipped'); b.classList.remove('flipped');
+          flipped = [];
+          lockBoard = false;
+        }, 800);
+      }
+    }
+  }
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function launchConfetti() {
+    if (reduced) { return; }
+    var colors = FLOWER_COLORS;
+    for (var i = 0; i < 40; i++) {
+      var piece = document.createElement('div');
+      piece.className = 'confetti';
+      piece.style.left = Math.random() * 100 + 'vw';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.animation = 'fall ' + (2 + Math.random() * 1.5) + 's ease-in forwards';
+      piece.style.animationDelay = (Math.random() * 0.4) + 's';
+      document.body.appendChild(piece);
+      (function (el) { setTimeout(function () { el.remove(); }, 4000); })(piece);
+    }
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', buildBoard);
+  buildBoard();
+</script>
+</body>
+</html>

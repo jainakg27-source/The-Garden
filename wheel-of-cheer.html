@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wheel of Cheer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 15% 15%, rgba(255,157,186,0.4), transparent 60%),
+                radial-gradient(circle at 85% 85%, rgba(111,214,160,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 56px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 28px; opacity: 0.75; max-width: 380px; }
+
+  .wheel-area { position: relative; width: 260px; height: 260px; margin-bottom: 12px; }
+  .pointer {
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
+    border-top: 22px solid var(--ink); z-index: 2;
+  }
+  #wheel {
+    width: 260px; height: 260px; border-radius: 50%; border: 6px solid white; box-shadow: 0 8px 24px rgba(58,52,44,0.18);
+    background: conic-gradient(
+      #6fd6a0 0deg 45deg, #ff9dba 45deg 90deg, #ffab6e 90deg 135deg, #ffdc4d 135deg 180deg,
+      #e2a52a 180deg 225deg, #b7a9ff 225deg 270deg, #4fd1c5 270deg 315deg, #ff6f91 315deg 360deg
+    );
+    transition: transform 3.5s cubic-bezier(0.15, 0.65, 0.25, 1);
+  }
+  #spin-btn {
+    margin: 20px 0 28px; font-family: 'Karla', sans-serif; font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 14px 34px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,165,42,0.4);
+  }
+  #spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #result {
+    font-family: 'Fraunces', serif; font-size: 20px; min-height: 30px; max-width: 380px; margin-bottom: 28px;
+  }
+
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; max-width: 460px; text-align: left; }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 8px; border-radius: 8px; transition: background 200ms ease; }
+  .legend-item.active { background: rgba(226,165,42,0.18); font-weight: 700; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+  @media (prefers-reduced-motion: reduce) { #wheel { transition: transform 300ms ease; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Give it a spin</span>
+  <h1>Wheel of Cheer</h1>
+  <p class="sub">Eight little compliments, dares, and treats. Spin and see what you get.</p>
+
+  <div class="wheel-area">
+    <div class="pointer" aria-hidden="true"></div>
+    <div id="wheel" aria-hidden="true"></div>
+  </div>
+
+  <button id="spin-btn">Spin the wheel</button>
+  <p id="result" aria-live="polite"></p>
+
+  <div class="legend" id="legend"></div>
+
+<script>
+  var COLORS = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#e2a52a', '#b7a9ff', '#4fd1c5', '#ff6f91'];
+  var PRIZES = [
+    "Compliment: You have great taste, actually.",
+    "Dare: Text someone \u201cthinking of you\u201d right now.",
+    "Treat: Make your favorite snack today, no reason needed.",
+    "Compliment: People trust you more than you realize.",
+    "Dare: Wear your favorite outfit today, no occasion needed.",
+    "Treat: Take a ten-minute break, completely guilt-free.",
+    "Compliment: You make hard things look easy.",
+    "Dare: Say yes to the thing you'd normally overthink."
+  ];
+
+  var legendEl = document.getElementById('legend');
+  PRIZES.forEach(function (text, i) {
+    var item = document.createElement('div');
+    item.className = 'legend-item';
+    item.id = 'legend-' + i;
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = COLORS[i];
+    var label = document.createElement('span');
+    label.textContent = text;
+    item.appendChild(dot);
+    item.appendChild(label);
+    legendEl.appendChild(item);
+  });
+
+  var wheel = document.getElementById('wheel');
+  var spinBtn = document.getElementById('spin-btn');
+  var resultEl = document.getElementById('result');
+  var currentRotation = 0;
+  var spinning = false;
+
+  spinBtn.addEventListener('click', function () {
+    if (spinning) { return; }
+    spinning = true;
+    spinBtn.disabled = true;
+    resultEl.textContent = '';
+    document.querySelectorAll('.legend-item').forEach(function (el) { el.classList.remove('active'); });
+
+    var idx = Math.floor(Math.random() * 8);
+    var segmentCenter = idx * 45 + 22.5;
+    var targetMod = (360 - segmentCenter) % 360;
+    var extraSpins = 5;
+    var base = currentRotation - (currentRotation % 360);
+    var newRotation = base + 360 * extraSpins + targetMod;
+    if (newRotation <= currentRotation) { newRotation += 360; }
+    currentRotation = newRotation;
+    wheel.style.transform = 'rotate(' + currentRotation + 'deg)';
+
+    setTimeout(function () {
+      resultEl.textContent = 'You got: ' + PRIZES[idx];
+      document.getElementById('legend-' + idx).classList.add('active');
+      spinBtn.disabled = false;
+      spinning = false;
+    }, 3600);
+  });
+</script>
+</body>
+</html>

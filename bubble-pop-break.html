@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bubble Pop Break</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --mint: #6fd6a0; --pink: #ff9dba; --coral: #ffab6e; --sun: #ffdc4d; --gold: #e2a52a; --ink: #3a342c; --ivory: #fffaf2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 20% 10%, rgba(255,157,186,0.4), transparent 60%),
+                radial-gradient(circle at 80% 90%, rgba(111,214,160,0.4), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 6px; text-align: center; }
+  p.sub { margin: 0 0 20px; opacity: 0.75; text-align: center; }
+  #score { font-weight: 600; margin-bottom: 16px; }
+  #board {
+    position: relative; width: 100%; max-width: 560px; height: 420px;
+    background: rgba(255,255,255,0.5); border-radius: 24px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(58,52,44,0.1);
+  }
+  .bubble {
+    position: absolute; border-radius: 50%; border: none; cursor: pointer;
+    box-shadow: inset -4px -4px 8px rgba(255,255,255,0.5), inset 4px 4px 8px rgba(0,0,0,0.06);
+    transition: transform 150ms ease, opacity 200ms ease;
+  }
+  .bubble:hover { transform: scale(1.08); }
+  .bubble:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .bubble.popped { transform: scale(0); opacity: 0; pointer-events: none; }
+  #done-msg { display: none; font-family: 'Fraunces', serif; font-size: 22px; margin: 20px 0 4px; text-align: center; }
+  #reset-btn {
+    margin-top: 20px; font-family: 'Karla', sans-serif; font-weight: 600; font-size: 15px;
+    background: linear-gradient(135deg, var(--sun), var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 12px 28px; cursor: pointer;
+    box-shadow: 0 5px 16px rgba(226,165,42,0.35);
+  }
+  @media (prefers-reduced-motion: reduce) { .bubble, .bubble:hover { transition: none; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Two minutes, just for you</span>
+  <h1>Bubble Pop Break</h1>
+  <p class="sub">Pop them all. That's it. That's the whole game.</p>
+  <p id="score">Popped: 0 / 0</p>
+  <div id="board" aria-label="Bubble play area"></div>
+  <p id="done-msg" aria-live="polite">All popped! Nicely done ✨</p>
+  <button id="reset-btn">New batch of bubbles</button>
+
+<script>
+  var COLORS = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#e2a52a', '#8fe0c4', '#ffc1d6'];
+  var TOTAL = 34;
+  var popped = 0;
+
+  function randomBetween(min, max) { return Math.random() * (max - min) + min; }
+
+  function makeBubbles() {
+    var board = document.getElementById('board');
+    board.innerHTML = '';
+    popped = 0;
+    document.getElementById('score').textContent = 'Popped: 0 / ' + TOTAL;
+    document.getElementById('done-msg').style.display = 'none';
+
+    var boardWidth = board.clientWidth;
+    var boardHeight = board.clientHeight;
+
+    for (var i = 0; i < TOTAL; i++) {
+      var size = randomBetween(30, 70);
+      var btn = document.createElement('button');
+      btn.className = 'bubble';
+      btn.style.width = size + 'px';
+      btn.style.height = size + 'px';
+      btn.style.left = randomBetween(0, boardWidth - size) + 'px';
+      btn.style.top = randomBetween(0, boardHeight - size) + 'px';
+      btn.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+      btn.setAttribute('aria-label', 'Pop bubble');
+      btn.addEventListener('click', function () {
+        if (this.classList.contains('popped')) { return; }
+        this.classList.add('popped');
+        popped++;
+        document.getElementById('score').textContent = 'Popped: ' + popped + ' / ' + TOTAL;
+        if (popped === TOTAL) {
+          document.getElementById('done-msg').style.display = 'block';
+        }
+      });
+      board.appendChild(btn);
+    }
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', makeBubbles);
+  window.addEventListener('load', makeBubbles);
+</script>
+</body>
+</html>

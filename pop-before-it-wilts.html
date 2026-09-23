@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pop Before It Wilts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Karla:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #3a342c; --ivory: #fffaf2; --gold: #e2a52a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Karla', sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 15% 20%, rgba(255,111,145,0.35), transparent 60%),
+                radial-gradient(circle at 85% 80%, rgba(79,209,197,0.35), transparent 60%),
+                var(--ivory);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 40px; text-align: center;
+  }
+  .eyebrow { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 16px; opacity: 0.75; max-width: 380px; }
+  #stats { font-weight: 600; margin-bottom: 16px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+
+  #board {
+    position: relative; width: 100%; max-width: 560px; height: 380px;
+    background: rgba(255,255,255,0.5); border-radius: 24px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(58,52,44,0.1); margin-bottom: 20px;
+  }
+  .target {
+    position: absolute; width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+    animation: wilt 1.3s linear forwards;
+    box-shadow: inset -4px -4px 8px rgba(255,255,255,0.4), inset 4px 4px 8px rgba(0,0,0,0.08);
+  }
+  @keyframes wilt { 0% { transform: scale(0.4); opacity: 0; } 15% { transform: scale(1); opacity: 1; } 80% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.6); opacity: 0; } }
+  .target:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  #start-btn, #reset-btn {
+    font-family: 'Karla', sans-serif; font-weight: 600; font-size: 16px;
+    background: linear-gradient(135deg, #ffdc4d, var(--gold)); color: var(--ink);
+    border: none; border-radius: 999px; padding: 14px 32px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(226,165,42,0.4);
+  }
+  #end-msg { display: none; font-family: 'Fraunces', serif; font-size: 22px; margin-bottom: 12px; }
+  @media (prefers-reduced-motion: reduce) { .target { animation: none; opacity: 1; } }
+</style>
+</head>
+<body>
+  <span class="eyebrow">Thirty seconds. Quick hands.</span>
+  <h1>Pop Before It Wilts</h1>
+  <p class="sub">Blooms appear for just over a second. Click as many as you can before time's up.</p>
+  <div id="stats">
+    <span id="score">Score: 0</span>
+    <span id="timer">Time: 30</span>
+    <span id="best">Best: 0</span>
+  </div>
+
+  <div id="board" aria-label="Game board"></div>
+  <p id="end-msg" aria-live="polite"></p>
+  <button id="start-btn">Start round</button>
+
+<script>
+  var COLORS = ['#6fd6a0', '#ff9dba', '#ffab6e', '#ffdc4d', '#e2a52a', '#b7a9ff', '#4fd1c5', '#ff6f91'];
+  var score = 0, timeLeft = 30, spawnTimer = null, countdownTimer = null, running = false;
+  var best = 0;
+
+  try {
+    var saved = localStorage.getItem('popBeforeItWiltsBest');
+    if (saved) { best = parseInt(saved, 10) || 0; }
+  } catch (e) { /* localStorage unavailable, best stays 0 for this session */ }
+  document.getElementById('best').textContent = 'Best: ' + best;
+
+  function randomBetween(min, max) { return Math.random() * (max - min) + min; }
+
+  function spawnTarget() {
+    var board = document.getElementById('board');
+    var size = 52;
+    var boardWidth = board.clientWidth, boardHeight = board.clientHeight;
+    var btn = document.createElement('button');
+    btn.className = 'target';
+    btn.style.left = randomBetween(0, boardWidth - size) + 'px';
+    btn.style.top = randomBetween(0, boardHeight - size) + 'px';
+    btn.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+    btn.setAttribute('aria-label', 'Pop bloom');
+
+    var removed = false;
+    function remove() {
+      if (removed) { return; }
+      removed = true;
+      if (btn.parentNode) { btn.parentNode.removeChild(btn); }
+    }
+
+    btn.addEventListener('click', function () {
+      if (removed) { return; }
+      score++;
+      document.getElementById('score').textContent = 'Score: ' + score;
+      remove();
+    });
+    btn.addEventListener('animationend', remove);
+
+    board.appendChild(btn);
+  }
+
+  function startRound() {
+    if (running) { return; }
+    running = true;
+    score = 0; timeLeft = 30;
+    document.getElementById('score').textContent = 'Score: 0';
+    document.getElementById('timer').textContent = 'Time: 30';
+    document.getElementById('end-msg').style.display = 'none';
+    document.getElementById('board').innerHTML = '';
+    document.getElementById('start-btn').disabled = true;
+
+    spawnTimer = setInterval(spawnTarget, 750);
+    countdownTimer = setInterval(function () {
+      timeLeft--;
+      document.getElementById('timer').textContent = 'Time: ' + timeLeft;
+      if (timeLeft <= 0) { endRound(); }
+    }, 1000);
+  }
+
+  function endRound() {
+    running = false;
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    document.getElementById('board').innerHTML = '';
+    document.getElementById('start-btn').disabled = false;
+
+    if (score > best) {
+      best = score;
+      document.getElementById('best').textContent = 'Best: ' + best;
+      try { localStorage.setItem('popBeforeItWiltsBest', String(best)); } catch (e) { /* ignore */ }
+      document.getElementById('end-msg').textContent = 'New best! ' + score + ' popped \u2728';
+    } else {
+      document.getElementById('end-msg').textContent = 'Round over \u2014 ' + score + ' popped.';
+    }
+    document.getElementById('end-msg').style.display = 'block';
+  }
+
+  document.getElementById('start-btn').addEventListener('click', startRound);
+</script>
+</body>
+</html>
